@@ -13,7 +13,6 @@ if (APPLE)
     add_compile_options(-fvisibility=hidden)
 endif()
 
-tcpp_debug_var(CMAKE_PREFIX_PATH)
 
 # NOTE: cmake must have a CTestTEstfile.cmkae generated
 # at the root of the build folder... otherwise it does not find tests
@@ -30,6 +29,8 @@ if (${USE_CONAN})
     endif()
     include(${_conan_paths})
 endif()
+
+tcpp_debug_var(CMAKE_PREFIX_PATH)
 
 find_package(Boost REQUIRED)
 find_package(ROOT REQUIRED)
