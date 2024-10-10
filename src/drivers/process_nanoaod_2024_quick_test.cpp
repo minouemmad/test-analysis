@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
     bpo::options_description desc{"options"};
     desc.add_options()
         ("help", "print help message")
-        ("--root-file", bpo::value<std::string>(&root_file_path), "input root file")
+        ("root-file", bpo::value<std::string>(&root_file_path), "input root file")
         ;
     bpo::variables_map vm;
     bpo::store(bpo::parse_command_line(argc, argv, desc), vm);
