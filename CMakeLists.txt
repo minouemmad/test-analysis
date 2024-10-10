@@ -13,6 +13,8 @@ if (APPLE)
     add_compile_options(-fvisibility=hidden)
 endif()
 
+tcpp_debug_var(CMAKE_PREFIX_PATH)
+
 # NOTE: cmake must have a CTestTEstfile.cmkae generated
 # at the root of the build folder... otherwise it does not find tests
 include(${CMAKE_SOURCE_DIR}/cmake-tools/common.cmake)
