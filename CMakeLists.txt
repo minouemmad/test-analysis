@@ -32,7 +32,6 @@ endif()
 
 tcpp_debug_var(CMAKE_PREFIX_PATH)
 
-find_package(Boost REQUIRED)
 find_package(ROOT REQUIRED)
   
 tcpp_debug_var(ROOT_LIBRARIES)

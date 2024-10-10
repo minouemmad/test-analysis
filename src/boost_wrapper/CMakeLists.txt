@@ -1,3 +1,5 @@
+find_package(Boost REQUIRED)
+
 tcpp_target_name(_target)
 
 tcpp_debug_var(Boost_INCLUDE_DIRS)
