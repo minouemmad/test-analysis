@@ -1,4 +1,4 @@
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED CONFIG)
 
 tcpp_target_name(_target)
 
