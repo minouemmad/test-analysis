@@ -12,6 +12,11 @@
 
     /// TODO
     /// customize further
+#define SET_BRANCH_INT_ARRAY(NAME) \
+    Int_t NAME[100]; \
+    (ROOT_CHAIN)->SetBranchAddress(#NAME, &NAME); \
+    static_assert(true, "")
+
 #define SET_BRANCH_FLOAT_ARRAY(NAME) \
     Float_t NAME[100]; \
     (ROOT_CHAIN)->SetBranchAddress(#NAME, &NAME); \

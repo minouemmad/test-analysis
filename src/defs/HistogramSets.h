@@ -48,9 +48,26 @@ namespace analysis
                 hMuonphi->Sumw2(kTRUE);
 				gDirectory->cd("../");
 			}
+
+            void init2()                                                      //
+            {                                                                 //
+                gDirectory->mkdir(_postfix);                                  //
+                gDirectory->cd(_postfix);                                     //
+                hFsrPhotonpt = new TH1F("FsrPhotonpt", "FsrPhotonpt",         //
+                    75, 0, 75);                                               //
+                //hFsrPhotonpt->Sumw2(kTRUE);                                   //
+                hFsrPhotoneta = new TH1F("FsrPhotoneta", "FsrPhotoneta",      //
+                    50, -2.5, 2.5);                                           //
+                //hFsrPhotoneta->Sumw2(kTRUE);                                  //
+                hFsrPhotonphi = new TH1F("FsrPhotonphi", "FsrPhotonphi",      //
+                    36, -3.6, 3.6);                                           //
+                //hFsrPhotonphi->Sumw2(kTRUE);                                  //
+                gDirectory->cd("../");                                        //
+            }                                                                 //
+
 			~DimuonSet() {}
 
-			TString _postfix;
+            TString _postfix;
 			TH1D *hDiJetMass;
 			TH1D *hDiJetdeta;
 			TH1D *hDiMuonpt;
@@ -61,6 +78,9 @@ namespace analysis
 			TH1D *hMuoneta;
 			TH1D *hMuonphi;
 			TH1D *hNpv;
+            TH1F *hFsrPhotonpt;   //
+            TH1F *hFsrPhotonphi;  //
+            TH1F *hFsrPhotoneta;  //
 		};
 	}
 }

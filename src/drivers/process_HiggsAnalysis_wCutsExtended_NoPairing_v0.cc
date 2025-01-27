@@ -1,4 +1,5 @@
 #include "Muon.h"
+#include "FsrPhoton.h"
 #include "Jet.h"
 #include "Vertex.h"
 #include "Event.h"
@@ -82,7 +83,8 @@ double _dijetMass_ggFTight = 250.;
 double _dimuonPt_ggFTight = 50.;
 double _dimuonPt_01JetsTight = 10.;
 
-std::string const NTUPLEMAKER_NAME =  "ntuplemaker_H2DiMuonMaker";
+//std::string const NTUPLEMAKER_NAME =  "ntuplemaker_H2DiMuonMaker";
+std::string const NTUPLEMAKER_NAME =  "";
 
 namespace po = boost::program_options;
 using namespace analysis::core;
@@ -117,6 +119,10 @@ DimuonSet set01JetsLooseBE("01JetsLooseBE");
 DimuonSet set01JetsLooseOO("01JetsLooseOO");
 DimuonSet set01JetsLooseOE("01JetsLooseOE");
 DimuonSet set01JetsLooseEE("01JetsLooseEE");
+DimuonSet setFsrPhotons("FsrPhotons"); 
+DimuonSet setGlobalMuon("GlobalMuon");
+DimuonSet setPFMuon("PFMuon");
+DimuonSet setTrackerMuon("TrackerMuon");
 
 bool isBarrel(Muon const& m)
 {
@@ -156,14 +162,14 @@ bool passMuon(Muon const& m, MuonType id=kLead)
     {
 	    if (m._isGlobal && m._isTracker &&
 		    m._pt>_leadmuonPt && TMath::Abs(m._eta)<_leadmuonEta &&
-		    m._isTight && (m._trackIsoSumPt/m._pt)<_leadmuonIso)
+		    m._isTight /*&& (m._trackIsoSumPt/m._pt)<_leadmuonIso*/)
 		    return true;
     }
     else
     {
 	    if (m._isGlobal && m._isTracker &&
 		    m._pt>_subleadmuonPt && TMath::Abs(m._eta)<_subleadmuonEta &&
-		    m._isTight && (m._trackIsoSumPt/m._pt)<_subleadmuonIso)
+		    m._isTight /*&& (m._trackIsoSumPt/m._pt)<_subleadmuonIso*/)
 		    return true;
     }
 	return false;
@@ -171,7 +177,7 @@ bool passMuon(Muon const& m, MuonType id=kLead)
 
 bool passMuonHLT(Muon const& m)
 {
-	if ((m._isHLTMatched[1] || m._isHLTMatched[0]) &&
+	if (/*(m._isHLTMatched[1] || m._isHLTMatched[0]) &&*/
 		m._pt>_muonMatchedPt && TMath::Abs(m._eta)<_muonMatchedEta)
 		return true;
 
@@ -184,8 +190,8 @@ bool passMuons(Muon const& m1, Muon const& m2)
     Muon const& subleadmuon = m1._pt<m2._pt ? m1 : m2;
 	if (m1._charge!=m2._charge &&
 		passMuon(leadmuon, kLead) && passMuon(subleadmuon, kSubLead))
-		if (passMuonHLT(m1) || passMuonHLT(m2))
-			return true;
+        if (passMuonHLT(m1) || passMuonHLT(m2))
+            return true;
 
 	return false;
 }
@@ -198,7 +204,7 @@ float jetMuondR(float jeta,float jphi, float meta, float mphi)
 	return p4j.DeltaR(p4m);
 }
 
-void categorize(Jets* jets, Muon const& mu1, Muon const&  mu2, 
+void categorize(Jets* jets, Muon const& mu1, Muon const&  mu2, /*FsrPhoton const& gamma,*/
 	MET const& met, Event const& event, float puweight=1.)
 {
 	TLorentzVector p4m1, p4m2;
@@ -206,8 +212,32 @@ void categorize(Jets* jets, Muon const& mu1, Muon const&  mu2,
 		mu1._phi, PDG_MASS_Mu);
 	p4m2.SetPtEtaPhiM(mu2._pt, mu2._eta, 
 		mu2._phi, PDG_MASS_Mu);
-	TLorentzVector p4dimuon = p4m1 + p4m2;
+    
+	/*TLorentzVector p4g;                    //
+	p4g.SetPtEtaPhiM(gamma._pt, gamma._eta,  //
+		gamma._phi, 0);*/                    //
+    
+    //Printing out invariant mass dimuon
+	double mass_muon1 = p4m1.M();
+    double mass_muon2 = p4m2.M();
 
+    TLorentzVector p4dimuon = p4m1 + p4m2;
+
+    double mass_dimuon = p4dimuon.M();
+
+//**************************************************************
+    /*for (int imuon = 0;imuon<nMuon;imuon++){
+        if(Muon_tightId == true) {
+            TLorentzVector muonVec;
+            muonVec.SetPtEtaPhiM(muon[imuon].pt, muon[imuon].eta, muon[imuon].phi, muon[imuon].mass);
+	        setNoCats.hDiMuonpt->Fill(muonVec.Pt(), puweight);}}
+    
+    for (int iphoton = 0;iphoton<nFsrPhoton;iphoton++){
+            cout<<iphoton<<endl;
+            float fsrPhoton_pt = fsrPhotons[iphoton].pt;
+            setNoCats.hDiMuonMass->Fill(nFsrPhoton_pt, puweight);}*/
+
+//**************************************************************
 	//	Fill the No Categorization Set
 	double dphi = p4m1.DeltaPhi(p4m2);
 	setNoCats.hDiMuonpt->Fill(p4dimuon.Pt(), puweight);
@@ -220,10 +250,63 @@ void categorize(Jets* jets, Muon const& mu1, Muon const&  mu2,
 	setNoCats.hMuoneta->Fill(p4m2.Eta(), puweight);
 	setNoCats.hMuonphi->Fill(p4m1.Phi(), puweight);
 	setNoCats.hMuonphi->Fill(p4m2.Phi(), puweight);
-	
+
+    //ADDITIONAL THINGS TO PUT IN...
+    //Isolation Cuts 
+    //  Track/Calorimeter Isolation
+    //Impact Paraimeter Cuts
+    //  Transverse Impact Parameter (d_0)
+    //Event Topology Cuts
+    //  Number of Jets 
+    //  MET
+    //Muon ID and Trigger Cuts
+    //  Muon Quality Cuts --> Ex. # of hits in tracker/muon system
+    //  Triggers --> Ex. Single-Muon Triggers 
+    //Background Rejection Cuts 
+    //  Drell-Yan Processes 
+    //Pileup Mitigation
+   
+        if (mu1._isGlobal && mu2._isGlobal) {
+                setGlobalMuon.hDiMuonpt->Fill(p4dimuon.Pt(), puweight);
+                setGlobalMuon.hDiMuonMass->Fill(p4dimuon.M(), puweight);
+                setGlobalMuon.hDiMuoneta->Fill(p4dimuon.Eta(), puweight);
+                setGlobalMuon.hDiMuondphi->Fill(dphi, puweight);
+                setGlobalMuon.hMuonpt->Fill(p4m1.Pt(), puweight);
+                setGlobalMuon.hMuonpt->Fill(p4m2.Pt(), puweight);
+                setGlobalMuon.hMuoneta->Fill(p4m1.Eta(), puweight);
+                setGlobalMuon.hMuoneta->Fill(p4m2.Eta(), puweight);
+                setGlobalMuon.hMuonphi->Fill(p4m2.Phi(), puweight);
+        }
+
 	if (!(p4dimuon.M()>110 && p4dimuon.M()<160 &&
 		mu1._isPF && mu2._isPF))
 		return;
+
+	if (mu1._isPF && mu2._isPF) {
+   		setPFMuon.hDiMuonpt->Fill(p4dimuon.Pt(), puweight);
+    		setPFMuon.hDiMuonMass->Fill(p4dimuon.M(), puweight);
+    		setPFMuon.hDiMuoneta->Fill(p4dimuon.Eta(), puweight);
+    		setPFMuon.hDiMuondphi->Fill(dphi, puweight);
+    		setPFMuon.hMuonpt->Fill(p4m1.Pt(), puweight);
+    		setPFMuon.hMuonpt->Fill(p4m2.Pt(), puweight);
+    		setPFMuon.hMuoneta->Fill(p4m1.Eta(), puweight);
+    		setPFMuon.hMuoneta->Fill(p4m2.Eta(), puweight);
+    		setPFMuon.hMuonphi->Fill(p4m1.Phi(), puweight);
+    		setPFMuon.hMuonphi->Fill(p4m2.Phi(), puweight);
+	}
+
+	if (mu1._isTracker && mu2._isTracker) {
+    		setTrackerMuon.hDiMuonpt->Fill(p4dimuon.Pt(), puweight);
+    		setTrackerMuon.hDiMuonMass->Fill(p4dimuon.M(), puweight);
+    		setTrackerMuon.hDiMuoneta->Fill(p4dimuon.Eta(), puweight);
+  		setTrackerMuon.hDiMuondphi->Fill(dphi, puweight);
+    		setTrackerMuon.hMuonpt->Fill(p4m1.Pt(), puweight);
+   		setTrackerMuon.hMuonpt->Fill(p4m2.Pt(), puweight);
+    		setTrackerMuon.hMuoneta->Fill(p4m1.Eta(), puweight);	
+    		setTrackerMuon.hMuoneta->Fill(p4m2.Eta(), puweight);
+	 	setTrackerMuon.hMuonphi->Fill(p4m1.Phi(), puweight);
+		setTrackerMuon.hMuonphi->Fill(p4m2.Phi(), puweight);
+	}
 
 	std::vector<TLorentzVector> p4jets;
 	for (Jets::const_iterator it=jets->begin(); it!=jets->end(); ++it)
@@ -236,7 +319,14 @@ void categorize(Jets* jets, Muon const& mu1, Muon const&  mu2,
 				TLorentzVector p4;
 				p4.SetPtEtaPhiM(it->_pt, it->_eta, it->_phi, it->_mass);
 				p4jets.push_back(p4);
-			}
+			
+            // Print out the jet's properties
+           /* std::cout << "Jet passing selection: " << std::endl;
+            std::cout << "  pT:  " << it->_pt << " GeV" << std::endl;
+            std::cout << "  eta: " << it->_eta << std::endl;
+            std::cout << "  phi: " << it->_phi << std::endl;
+            std::cout << "  mass: " << it->_mass << " GeV" << std::endl;*/
+            }
 		}
 	}
 //	if (p4jets.size()>2)
@@ -498,7 +588,8 @@ void generatePUMC()
 {
     std::cout << "### Generate PU MC file...." << std::endl;
 	TFile *pufile = new TFile(__puMCfilename.c_str(), "recreate");
-	TH1D *h = new TH1D("pileup", "pileup", 50, 0, 50);
+	//TH1D *h = new TH1D("pileup", "pileup", 50, 0, 50);
+	TH1D *h = new TH1D("pileup", "pileup", 99, 0, 99);
 
 	Streamer s(__inputfilename, NTUPLEMAKER_NAME+"/Events");
 	s.chainup();
@@ -547,7 +638,11 @@ void process()
 	set01JetsLooseOO.init();
 	set01JetsLooseOE.init();
 	set01JetsLooseEE.init();
-
+    	setFsrPhotons.init(); 
+    	setFsrPhotons.init2();   
+    	setGlobalMuon.init(); 
+	setPFMuon.init();
+	setTrackerMuon.init();
 	//	get the total events, etc...
 #if 0
 	long long int numEventsWeighted = sampleinfo(__inputfilename);
@@ -569,6 +664,7 @@ void process()
 	Muons muons1;
 	Muons muons2;
 	Jets *jets=NULL;
+    FsrPhotons *fsrphotons=NULL;
 	Vertices *vertices=NULL;
 	Event *event=NULL;
 	EventAuxiliary *aux=NULL;
@@ -580,10 +676,12 @@ void process()
     SET_BRANCH_FLOAT_ARRAY(Muon_pt);
     SET_BRANCH_FLOAT_ARRAY(Muon_phi);
     SET_BRANCH_FLOAT_ARRAY(Muon_eta);
+    SET_BRANCH_INT_ARRAY(Muon_charge);
     SET_BRANCH_BOOL_ARRAY(Muon_isGlobal);
     SET_BRANCH_BOOL_ARRAY(Muon_isTracker);
-    SET_BRANCH_UCHAR_ARRAY(Muon_miniIsoId);
+    //SET_BRANCH_UCHAR_ARRAY(Muon_miniIsoId);
     SET_BRANCH_BOOL_ARRAY(Muon_tightId);
+    SET_BRANCH_BOOL_ARRAY(Muon_isPFcand);
 
     SET_BRANCH_FLOAT(PV_ndof);
     SET_BRANCH_FLOAT(PV_z);
@@ -596,15 +694,33 @@ void process()
     SET_BRANCH_FLOAT_ARRAY(Jet_pt);
     SET_BRANCH_FLOAT_ARRAY(Jet_phi);
 
+    SET_BRANCH_UINT(nFsrPhoton);
+    SET_BRANCH_FLOAT_ARRAY(FsrPhoton_pt);
+    SET_BRANCH_FLOAT_ARRAY(FsrPhoton_phi);
+    SET_BRANCH_FLOAT_ARRAY(FsrPhoton_eta);
+    SET_BRANCH_INT_ARRAY(FsrPhoton_muonIdx);
+    TH1F *fsr_pt = new TH1F("fsr_pt","FSR Photon pt",75,0,75);
+    TH1F *fsr_eta = new TH1F("fsr_eta","FSR Photon eta",50,-2.5,2.5);
+    TH1F *fsr_phi = new TH1F("fsr_phi","FSR Photon phi",36,-3.6,3.6);
+
+    SET_BRANCH_UINT(nPhoton);
+    SET_BRANCH_FLOAT_ARRAY(Photon_pt);
+    SET_BRANCH_FLOAT_ARRAY(Photon_eta);
+    SET_BRANCH_FLOAT_ARRAY(Photon_phi);
+    TH1F *gamma_pt = new TH1F("gamma_pt","Photon pt",150,0,150);
+    TH1F *gamma_eta = new TH1F("gamma_eta","Photon pt",50,-2.5,2.5);
+    TH1F *gamma_phi = new TH1F("gamma_phi","Photon pt",36,-3.6,3.6);
 
     muons = new std::vector<Muon>();
     jets = new std::vector<Jet>();
+    fsrphotons = new std::vector<FsrPhoton>();
     vertices = new std::vector<Vertex>();
     met = new MET();
 
 #if 0
 	streamer._chain->SetBranchAddress("Muons", &muons);
 	streamer._chain->SetBranchAddress("Jets", &jets);
+	streamer._chain->SetBranchAddress("FsrPhotons", &fsrphotons);
 	streamer._chain->SetBranchAddress("Vertices", &vertices);
 	streamer._chain->SetBranchAddress("Event", &event);
 	streamer._chain->SetBranchAddress("EventAuxiliary", &aux);
@@ -626,9 +742,10 @@ void process()
 	//	Main Loop
 	uint32_t numEntries = streamer._chain->GetEntries();
 	for (uint32_t i=0; i<numEntries && __continueRunning; i++)
-	{
+	{   int jjj=i;//if(i>1e5) continue;
         muons->clear();
         jets->clear();
+        fsrphotons->clear();
         vertices->clear();
         muons1.clear(); muons2.clear();
 		streamer._chain->GetEntry(i);
@@ -638,9 +755,11 @@ void process()
             mu._pt = Muon_pt[i];
             mu._eta = Muon_eta[i];
             mu._phi = Muon_phi[i];
+            mu._charge = Muon_charge[i];
             mu._isGlobal = Muon_isGlobal[i];
             mu._isTracker = Muon_isTracker[i];
             mu._isTight = Muon_tightId[i];
+            mu._isPF = Muon_isPFcand[i];
             muons->push_back(std::move(mu));
         }
 
@@ -652,6 +771,17 @@ void process()
             jet._mass = Jet_mass[i];
             jets->push_back(std::move(jet));
         }
+
+        for (size_t i=0; i<nFsrPhoton; i++){
+            FsrPhoton fsrphoton;
+            fsrphoton._pt = FsrPhoton_pt[i];
+            fsrphoton._eta = FsrPhoton_eta[i];
+            fsrphoton._phi = FsrPhoton_phi[i];
+            fsrphoton._muonIdx = FsrPhoton_muonIdx[i];
+            fsrphotons->push_back(std::move(fsrphoton));
+            //cout<<jjj<<" "<<i<<" "<<fsrphoton._muonIdx<<" "<<fsrphoton._pt<<" "<<fsrphoton._eta<<" "<<fsrphoton._phi<<" "<<endl;
+        }
+        //if(nFsrPhoton>0) cout<<endl;
 
         Vertex vtx;
         vtx._ndf = PV_ndof;
@@ -672,9 +802,10 @@ void process()
 		//
 		if (!passVertex(vertices))
 			continue;
+            #if 0
 		if (!(aux->_hasHLTFired[0] || aux->_hasHLTFired[1]))
 			continue;
-
+            #endif
         //  prepare the pairs of muons
         for (analysis::core::Muons::const_iterator it=muons->begin();
             it!=muons->end(); ++it)
@@ -690,6 +821,21 @@ void process()
 			categorize(jets, muons1.at(im), muons2.at(im), *met, *event,
 				puweight);
 		}
+
+        for(int ifsr=0;ifsr<nFsrPhoton;ifsr++)
+        {
+            fsr_pt->Fill(FsrPhoton_pt[ifsr]);
+            fsr_eta->Fill(FsrPhoton_eta[ifsr]);
+            fsr_phi->Fill(FsrPhoton_phi[ifsr]);
+            setFsrPhotons.hFsrPhotonpt->Fill(FsrPhoton_pt[ifsr], puweight);
+            setFsrPhotons.hFsrPhotoneta->Fill(FsrPhoton_eta[ifsr], puweight);
+            setFsrPhotons.hFsrPhotonphi->Fill(FsrPhoton_phi[ifsr], puweight);
+        }
+
+        for(int ig=0;ig<nPhoton;ig++)
+        {
+            gamma_pt->Fill(Photon_pt[ig]);
+        }
 	}
 
 	outroot->Write();

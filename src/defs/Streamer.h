@@ -57,7 +57,8 @@ namespace analysis
 				_chain->Add(TString(line.c_str()));
 			}
 
-			std::cout << "### Total Entries=" << _chain->GetEntries() 
+			int Ent = _chain->GetEntries();
+			std::cout << std::endl << "### Total Entries = " << Ent
 				<< std::endl;
 		}
 	}
