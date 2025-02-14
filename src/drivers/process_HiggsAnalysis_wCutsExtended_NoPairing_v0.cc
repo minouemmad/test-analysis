@@ -15,6 +15,7 @@
 #include "TString.h"
 #include "TMath.h"
 #include "TH1D.h"
+#include "TH2F.h"
 #include "TLorentzVector.h"
 #include "LumiReweightingStandAlone.h"
 #include "HistogramSets.h"
@@ -587,28 +588,37 @@ float sampleinfo(std::string const& inputname)
 void generatePUMC()
 {
     std::cout << "### Generate PU MC file...." << std::endl;
-	TFile *pufile = new TFile(__puMCfilename.c_str(), "recreate");
-	//TH1D *h = new TH1D("pileup", "pileup", 50, 0, 50);
-	TH1D *h = new TH1D("pileup", "pileup", 99, 0, 99);
+    TFile *pufile = new TFile(__puMCfilename.c_str(), "recreate");
+    
+    // Declare the first histogram with a unique name
+    TH1D *h_pileup = new TH1D("pileup", "pileup", 99, 0, 99);
 
-	Streamer s(__inputfilename, NTUPLEMAKER_NAME+"/Events");
-	s.chainup();
+    // Declare the second histogram with a unique name
+    //TH2F *h_fsr_pt_eta = new TH2F("fsr_pt_eta", "FSR Photon eta vs pT", 50, -2.5, 2.5, 75, 0, 75);
 
-	EventAuxiliary *aux=NULL;
-	s._chain->SetBranchAddress("EventAuxiliary", &aux);
-	int numEvents = s._chain->GetEntries();
-	for (uint32_t i=0; i<numEvents; i++)
-	{
-		s._chain->GetEntry(i);
-		h->Fill(aux->_nPU, aux->_genWeight);
-	}
+    //TH2F *h_isPFcand_vs_eta = new TH2F("isPFcand_vs_eta", "isPFcand vs eta; eta; isPFcand", 50, -2.5, 2.5, 2, -0.5, 1.5);
 
-	pufile->Write();
-	pufile->Close();
+    Streamer s(__inputfilename, NTUPLEMAKER_NAME+"/Events");
+    s.chainup();
+
+    EventAuxiliary *aux = NULL;
+    s._chain->SetBranchAddress("EventAuxiliary", &aux);
+    int numEvents = s._chain->GetEntries();
+    for (uint32_t i = 0; i < numEvents; i++)
+    {
+        s._chain->GetEntry(i);
+        h_pileup->Fill(aux->_nPU, aux->_genWeight);
+    }
+
+    pufile->Write();
+    pufile->Close();
 }
 
 void process()
 {
+	int totalEvents = 0;
+	int passedEvents = 0;
+
 	//	out ...
 	TFile *outroot = new TFile(__outputfilename.c_str(), "recreate");
     hEventWeights = new TH1D("eventWeights", "eventWeights", 1, 0, 1);
@@ -700,9 +710,16 @@ void process()
     SET_BRANCH_FLOAT_ARRAY(FsrPhoton_eta);
     SET_BRANCH_INT_ARRAY(FsrPhoton_muonIdx);
     TH1F *fsr_pt = new TH1F("fsr_pt","FSR Photon pt",75,0,75);
-    TH1F *fsr_eta = new TH1F("fsr_eta","FSR Photon eta",50,-2.5,2.5);
+    TH1F *fsr_eta = new TH1F("fsr_eta","FSR Photon eta",50,-4.5,4.5);
     TH1F *fsr_phi = new TH1F("fsr_phi","FSR Photon phi",36,-3.6,3.6);
 
+    TH2F *fsr_pt_eta = new TH2F("fsr_pt_eta", "FSR Photon eta vs pT; eta; pT [GeV]",
+                            50, -2.5, 2.5,  // 50 bins for eta ranging from -2 to 2.5
+                            75, 0, 75);     // 75 bins for pT ranging from 0 to 75 GeV
+
+    TH2F *h_isPFcand_vs_eta = new TH2F("isPFcand_vs_eta", "isPFcand vs eta; eta; isPFcand",
+                                    50, -2.5, 2.5,  // 50 bins for eta ranging from -2.5 to 2.5
+                                    2, -0.5, 1.5);  // 2 bins for isPFcand (0 or 1)
     SET_BRANCH_UINT(nPhoton);
     SET_BRANCH_FLOAT_ARRAY(Photon_pt);
     SET_BRANCH_FLOAT_ARRAY(Photon_eta);
@@ -749,19 +766,37 @@ void process()
         vertices->clear();
         muons1.clear(); muons2.clear();
 		streamer._chain->GetEntry(i);
+totalEvents++;
 
-        for (size_t i=0; i<nMuon; i++) {
-            Muon mu;
-            mu._pt = Muon_pt[i];
-            mu._eta = Muon_eta[i];
-            mu._phi = Muon_phi[i];
-            mu._charge = Muon_charge[i];
-            mu._isGlobal = Muon_isGlobal[i];
-            mu._isTracker = Muon_isTracker[i];
-            mu._isTight = Muon_tightId[i];
-            mu._isPF = Muon_isPFcand[i];
-            muons->push_back(std::move(mu));
-        }
+	// cut: at least one FSR photon with pt > 20 GeV
+	bool passesCuts = false;
+	for (const auto& fsrphoton : *fsrphotons) {
+    		if (fsrphoton._pt > 20.0) {
+        		passesCuts = true;
+        		break;
+    		}
+	}
+
+	if (passesCuts) {
+    		passedEvents++;
+	}
+
+	// In the loop where muons are processed
+	for (size_t i = 0; i < nMuon; i++) {
+    		Muon mu;
+    		mu._pt = Muon_pt[i];
+    		mu._eta = Muon_eta[i];
+    		mu._phi = Muon_phi[i];
+    		mu._charge = Muon_charge[i];
+    		mu._isGlobal = Muon_isGlobal[i];
+    		mu._isTracker = Muon_isTracker[i];
+    		mu._isTight = Muon_tightId[i];
+    		mu._isPF = Muon_isPFcand[i];
+    		muons->push_back(std::move(mu));
+
+    		// Fill the 2D histogram
+    		h_isPFcand_vs_eta->Fill(mu._eta, mu._isPF);
+	}	
 
         for (size_t i=0; i<nJet; i++) {
             Jet jet;
@@ -772,17 +807,17 @@ void process()
             jets->push_back(std::move(jet));
         }
 
-        for (size_t i=0; i<nFsrPhoton; i++){
-            FsrPhoton fsrphoton;
-            fsrphoton._pt = FsrPhoton_pt[i];
-            fsrphoton._eta = FsrPhoton_eta[i];
-            fsrphoton._phi = FsrPhoton_phi[i];
-            fsrphoton._muonIdx = FsrPhoton_muonIdx[i];
-            fsrphotons->push_back(std::move(fsrphoton));
-            //cout<<jjj<<" "<<i<<" "<<fsrphoton._muonIdx<<" "<<fsrphoton._pt<<" "<<fsrphoton._eta<<" "<<fsrphoton._phi<<" "<<endl;
-        }
-        //if(nFsrPhoton>0) cout<<endl;
+	for (size_t i = 0; i < nFsrPhoton; i++) {
+    		FsrPhoton fsrphoton;
+    		fsrphoton._pt = FsrPhoton_pt[i];
+    		fsrphoton._eta = FsrPhoton_eta[i];
+    		fsrphoton._phi = FsrPhoton_phi[i];
+  		fsrphoton._muonIdx = FsrPhoton_muonIdx[i];
+   		fsrphotons->push_back(std::move(fsrphoton));
 
+    		// Fill the 2D histogram
+    		fsr_pt_eta->Fill(fsrphoton._eta, fsrphoton._pt); // Use fsr_pt_eta
+	}
         Vertex vtx;
         vtx._ndf = PV_ndof;
         vtx._z = PV_z;
@@ -822,14 +857,19 @@ void process()
 				puweight);
 		}
 
-        for(int ifsr=0;ifsr<nFsrPhoton;ifsr++)
-        {
+	// Process FSR photons
+        for (size_t ifsr = 0; ifsr < nFsrPhoton; ifsr++) {
             fsr_pt->Fill(FsrPhoton_pt[ifsr]);
             fsr_eta->Fill(FsrPhoton_eta[ifsr]);
             fsr_phi->Fill(FsrPhoton_phi[ifsr]);
+
+            // Fill 1D histograms
             setFsrPhotons.hFsrPhotonpt->Fill(FsrPhoton_pt[ifsr], puweight);
             setFsrPhotons.hFsrPhotoneta->Fill(FsrPhoton_eta[ifsr], puweight);
             setFsrPhotons.hFsrPhotonphi->Fill(FsrPhoton_phi[ifsr], puweight);
+
+            // Fill 2D histogram
+            setFsrPhotons.hFsrPhoton_pt_vs_eta->Fill(FsrPhoton_pt[ifsr], FsrPhoton_eta[ifsr], puweight);
         }
 
         for(int ig=0;ig<nPhoton;ig++)
@@ -838,6 +878,13 @@ void process()
         }
 	}
 
+	double efficiency = (totalEvents > 0) ? (static_cast<double>(passedEvents) / totalEvents) * 100.0 : 0.0;
+	std::cout << "Total Events: " << totalEvents << std::endl;
+	std::cout << "Passed Events: " << passedEvents << std::endl;
+	std::cout << "Efficiency: " << efficiency << "%" << std::endl;
+
+	fsr_pt_eta->Write();
+	h_isPFcand_vs_eta->Write();
 	outroot->Write();
 	outroot->Close();
 
